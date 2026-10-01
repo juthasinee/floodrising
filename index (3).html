@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Flood Rising: Mitigation or Preparedness?</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EAF1F7; --ink:#13233A; --muted:#4A5B70; --panel:#FFFFFF; --line:#C9D6E3;
+  --mit:#2E7D5B; --prep:#D9701F; --water:rgba(52,120,196,.20); --water-top:rgba(52,120,196,.55);
+  --good:#2E7D5B; --bad:#B23A3A; --gold:#C98A00;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#13233A; --ink:#F3F6F8; --muted:#A9B8C9; --panel:#1C3150; --line:#2C4566;
+    --mit:#3BA474; --prep:#F2994A; --water:rgba(74,150,230,.20); --water-top:rgba(120,185,255,.55);
+    --good:#4CC38A; --bad:#FF7A7A; --gold:#FFC93C;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#13233A; --ink:#F3F6F8; --muted:#A9B8C9; --panel:#1C3150; --line:#2C4566;
+  --mit:#3BA474; --prep:#F2994A; --water:rgba(74,150,230,.20); --water-top:rgba(120,185,255,.55);
+  --good:#4CC38A; --bad:#FF7A7A; --gold:#FFC93C;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);
+  font-family:"Bricolage Grotesque",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible{outline:3px solid var(--prep);outline-offset:3px}
+
+#water{position:fixed;left:0;right:0;bottom:0;height:0;background:var(--water);
+  border-top:4px solid var(--water-top);z-index:0;pointer-events:none;transition:height .2s linear}
+#water.flood{background:rgba(178,58,58,.16);border-top-color:var(--bad)}
+
+.screen{position:relative;z-index:1;display:none;flex-direction:column;gap:18px;
+  max-width:760px;margin:0 auto;padding:clamp(18px,4vw,40px);min-height:100%}
+.screen.on{display:flex}
+h1{font-size:clamp(2.2rem,8vw,3.8rem);line-height:1;margin:0;font-weight:800;letter-spacing:-.02em}
+p{margin:0;line-height:1.45}
+.muted{color:var(--muted)}
+.legend{display:grid;gap:10px}
+.legend div{padding:12px 14px;border-radius:10px;color:#fff;font-weight:600}
+.legend small{display:block;font-weight:400;opacity:.92}
+label{font-weight:600;display:block;margin-bottom:6px}
+input[type=text]{font:inherit;font-size:1.1rem;padding:12px;border:2px solid var(--line);border-radius:10px;
+  background:var(--panel);color:var(--ink);width:100%}
+.big{background:var(--ink);color:var(--bg);border:0;border-radius:12px;padding:16px 24px;
+  font-size:1.25rem;font-weight:800;width:100%}
+.big:disabled{opacity:.4;cursor:not-allowed}
+.link{background:none;border:0;color:var(--muted);text-decoration:underline;padding:6px 0;align-self:flex-start}
+
+.hud{display:flex;justify-content:space-between;align-items:center;font-weight:600;color:var(--muted)}
+.hud .t{font-size:2.2rem;color:var(--ink);font-weight:800;font-variant-numeric:tabular-nums}
+.score{font-variant-numeric:tabular-nums;color:var(--ink)}
+#qText{font-size:clamp(1.6rem,6vw,2.6rem);line-height:1.15;font-weight:800;margin:6px 0 4px;letter-spacing:-.01em}
+.answers{display:grid;gap:12px}
+.ans{border:0;border-radius:14px;color:#fff;padding:20px;text-align:left;display:flex;align-items:center;gap:14px;
+  font-size:1.5rem;font-weight:800;min-height:84px;transition:opacity .2s,transform .15s}
+.ans:active{transform:scale(.98)}
+.ans .key{display:inline-grid;place-items:center;width:1.7em;height:1.7em;border-radius:10px;background:rgba(255,255,255,.22);font-size:.8em;flex:none}
+.ans small{display:block;font-size:.55em;font-weight:400;opacity:.92}
+.mit{background:var(--mit)} .prep{background:var(--prep)}
+.ans.dim{opacity:.25} .ans.right{box-shadow:0 0 0 5px var(--ink)}
+
+#feedback{display:none;background:var(--panel);border:2px solid var(--line);border-radius:14px;padding:16px;gap:8px;flex-direction:column}
+#feedback.on{display:flex}
+#verdict{font-size:1.5rem;font-weight:800}
+#verdict.ok{color:var(--good)} #verdict.no{color:var(--bad)}
+#gain{font-weight:600;color:var(--gold)}
+
+.result{background:var(--panel);border:2px solid var(--line);border-radius:16px;padding:20px;display:grid;gap:6px}
+.result .pts{font-size:clamp(3rem,14vw,5rem);font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
+.code{font-size:1.8rem;font-weight:800;letter-spacing:.12em;font-variant-numeric:tabular-nums}
+.review{display:grid;gap:10px}
+.review div{border-left:5px solid var(--bad);padding:6px 12px;background:var(--panel);border-radius:6px}
+.review b{display:block}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#checkOut{font-weight:800;font-size:1.2rem;min-height:1.5em}
+@media (prefers-reduced-motion: reduce){#water,.ans{transition:none}}
+</style>
+</head>
+<body>
+<div id="water" aria-hidden="true"></div>
+
+<!-- Start -->
+<section id="start" class="screen on">
+  <h1>Flood Rising</h1>
+  <p>16 disaster actions. Decide if each one is mitigation or preparedness before the water reaches the top. Faster correct answers score more points.</p>
+  <div class="legend">
+    <div class="mit">A · Mitigation<small>Changes the place so the disaster does less damage</small></div>
+    <div class="prep">B · Preparedness<small>Gets people ready to act when the disaster comes</small></div>
+  </div>
+  <div><label for="name">Your name</label><input id="name" type="text" autocomplete="name" maxlength="60"></div>
+  <div><label for="sid">Student ID</label><input id="sid" type="text" inputmode="numeric" maxlength="20"></div>
+  <button class="big" id="startBtn" disabled>Start game</button>
+  <button class="link" id="toCheck">Lecturer: check a completion code</button>
+</section>
+
+<!-- Play -->
+<section id="play" class="screen" aria-live="polite">
+  <div class="hud"><span id="qCount">1 / 16</span><span class="t" id="time">15</span><span class="score" id="scoreNow">0 pts</span></div>
+  <h2 id="qText">…</h2>
+  <div class="answers">
+    <button class="ans mit" id="aBtn"><span class="key">A</span><span>Mitigation<small>Makes the place safer</small></span></button>
+    <button class="ans prep" id="bBtn"><span class="key">B</span><span>Preparedness<small>Gets people ready</small></span></button>
+  </div>
+  <div id="feedback">
+    <div id="verdict"></div>
+    <div id="gain"></div>
+    <p id="explain"></p>
+    <button class="big" id="nextBtn">Next question</button>
+  </div>
+</section>
+
+<!-- End -->
+<section id="end" class="screen">
+  <h1 id="title">Done!</h1>
+  <div class="result">
+    <span class="muted" id="who"></span>
+    <span class="pts" id="finalPts">0</span>
+    <span id="finalSummary"></span>
+    <span class="muted">Completion code</span>
+    <span class="code" id="code">----</span>
+    <span class="muted">Take a screenshot of this screen and submit it as your lecturer asks.</span>
+  </div>
+  <div id="reviewWrap" class="review"></div>
+  <button class="big" id="againBtn">Play again</button>
+</section>
+
+<!-- Lecturer check -->
+<section id="check" class="screen">
+  <h1>Check a code</h1>
+  <p class="muted">Enter exactly what the student's screenshot shows. A code that matches means the score was not edited.</p>
+  <div><label for="cName">Name</label><input id="cName" type="text"></div>
+  <div class="row2">
+    <div><label for="cId">Student ID</label><input id="cId" type="text"></div>
+    <div><label for="cPts">Points</label><input id="cPts" type="text" inputmode="numeric"></div>
+  </div>
+  <div><label for="cCode">Completion code</label><input id="cCode" type="text" style="text-transform:uppercase"></div>
+  <button class="big" id="checkBtn">Check code</button>
+  <div id="checkOut" aria-live="polite"></div>
+  <button class="link" id="backStart">Back to the start screen</button>
+</section>
+
+<script>
+const QS = [
+  {q:"Building a sea wall along an eroding coast", a:"A", e:"It permanently changes the place to reduce damage from waves and storm surge."},
+  {q:"A tsunami warning siren on a tourist beach", a:"B", e:"The tsunami stays the same; the siren helps people act in time."},
+  {q:"Planting mangroves along the coastline", a:"A", e:"Mangroves absorb wave energy and reduce erosion. A nature-based solution."},
+  {q:"A school holding an earthquake drill twice a year", a:"B", e:"Drills train people to respond; the building and the hazard stay the same."},
+  {q:"A building code that requires earthquake-resistant design", a:"A", e:"Stronger buildings reduce damage for decades. Laws can be mitigation too."},
+  {q:"Families packing a 72-hour emergency kit", a:"B", e:"The kit helps people cope during and right after a disaster."},
+  {q:"Banning new houses on a floodplain", a:"A", e:"Land-use zoning reduces exposure by keeping people out of harm's way."},
+  {q:"Marking evacuation routes and shelters on a city map", a:"B", e:"It helps people move safely when the disaster comes."},
+  {q:"Raising houses on stilts in flood-prone villages", a:"A", e:"Raised houses permanently reduce flood damage to homes."},
+  {q:"SMS alerts about incoming PM2.5 haze", a:"B", e:"Alerts warn people so they can protect themselves; the haze is unchanged."},
+  {q:"Retention ponds (kaem ling) to store floodwater", a:"A", e:"They store excess water and lower flood depth."},
+  {q:"Training village volunteers in first aid and rescue", a:"B", e:"Training builds people's capacity to respond when disaster strikes."},
+  {q:"Cutting firebreaks in a forest before the dry season", a:"A", e:"Firebreaks change the landscape so fires spread less."},
+  {q:"Pre-positioning boats and sandbags before the rainy season", a:"B", e:"Tricky! Stocking sandbags gets resources ready for the response. The place itself has not changed."},
+  {q:"Crop insurance for farmers against drought", a:"A", e:"Debatable! Insurance does not stop drought but reduces economic loss. Most textbooks call it non-structural mitigation."},
+  {q:"A city turning car parks into rain gardens and porous paving (a sponge city)", a:"A", e:"Sponge cities let the ground absorb and store rain, so floods are smaller."}
+];
+const SECS = 15, SALT = "TU-ManEnv-2026";
+const $ = s => document.querySelector(s);
+let order=[], i=0, score=0, correct=0, left=SECS, t0=0, timer=null, answered=false, wrong=[], streak=0, player={name:"",sid:""};
+
+function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('on',s.id===id)); window.scrollTo(0,0);}
+function water(frac, flood){const w=$('#water'); w.style.height=(frac*100)+'%'; w.classList.toggle('flood',!!flood);}
+
+function validStart(){ $('#startBtn').disabled = !($('#name').value.trim() && $('#sid').value.trim()); }
+$('#name').addEventListener('input',validStart); $('#sid').addEventListener('input',validStart);
+
+function start(){
+  player={name:$('#name').value.trim(), sid:$('#sid').value.trim()};
+  order=QS.map((_,k)=>k);
+  for(let k=order.length-1;k>0;k--){const j=Math.floor(Math.random()*(k+1));[order[k],order[j]]=[order[j],order[k]];}
+  i=0; score=0; correct=0; wrong=[]; streak=0;
+  show('play'); load();
+}
+function load(){
+  const Q=QS[order[i]]; answered=false;
+  $('#qCount').textContent=`${i+1} / ${order.length}`;
+  $('#qText').textContent=Q.q;
+  $('#scoreNow').textContent=score+' pts';
+  $('#aBtn').className='ans mit'; $('#bBtn').className='ans prep';
+  $('#aBtn').disabled=false; $('#bBtn').disabled=false;
+  $('#feedback').classList.remove('on');
+  left=SECS; t0=performance.now(); $('#time').textContent=SECS; water(0);
+  clearInterval(timer);
+  timer=setInterval(()=>{
+    const el=(performance.now()-t0)/1000; left=Math.max(0,SECS-el);
+    $('#time').textContent=Math.ceil(left); water(el/SECS, left<=3);
+    if(left<=0){clearInterval(timer); answer(null);}
+  },100);
+}
+function answer(choice){
+  if(answered) return; answered=true; clearInterval(timer);
+  const Q=QS[order[i]], ok = choice===Q.a;
+  $('#aBtn').disabled=true; $('#bBtn').disabled=true;
+  $('#aBtn').classList.add(Q.a==='A'?'right':'dim'); $('#bBtn').classList.add(Q.a==='B'?'right':'dim');
+  let gain=0;
+  if(ok){
+    correct++; streak++;
+    gain = Math.round(500 + 500*(left/SECS));
+    if(streak>=3) gain += 100;
+  } else { streak=0; wrong.push(Q); }
+  score+=gain;
+  $('#scoreNow').textContent=score+' pts';
+  const v=$('#verdict');
+  v.textContent = choice===null ? "Time's up!" : ok ? "Correct!" : "Not quite.";
+  v.className = ok ? 'ok':'no';
+  $('#gain').textContent = ok ? `+${gain} points${streak>=3?` (streak of ${streak}!)`:''}` : '';
+  $('#explain').innerHTML = `<strong>${Q.a==='A'?'Mitigation':'Preparedness'}.</strong> ${esc(Q.e)}`;
+  $('#nextBtn').textContent = i<order.length-1 ? 'Next question' : 'See my result';
+  $('#feedback').classList.add('on');
+  $('#nextBtn').focus({preventScroll:true});
+  $('#feedback').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function next(){ if(i<order.length-1){i++; load();} else finish(); }
+
+function makeCode(name,sid,pts){
+  const s=(SALT+'|'+name.trim().toLowerCase()+'|'+sid.trim()+'|'+String(pts).trim());
+  let h=2166136261>>>0;
+  for(let k=0;k<s.length;k++){h^=s.charCodeAt(k); h=Math.imul(h,16777619)>>>0;}
+  return h.toString(36).toUpperCase().padStart(6,'0').slice(-6);
+}
+function finish(){
+  water(0);
+  const pct=correct/order.length;
+  $('#title').textContent = pct>=0.9 ? 'Disaster risk pro!' : pct>=0.7 ? 'Well prepared!' : pct>=0.5 ? 'Getting there' : 'Keep practising';
+  $('#who').textContent = `${player.name} · ${player.sid}`;
+  $('#finalPts').textContent = score;
+  $('#finalSummary').textContent = `${correct} of ${order.length} correct`;
+  $('#code').textContent = makeCode(player.name,player.sid,score);
+  const rw=$('#reviewWrap'); rw.innerHTML='';
+  if(wrong.length){
+    const h=document.createElement('p'); h.innerHTML='<strong>Review the ones you missed</strong>'; rw.appendChild(h);
+    wrong.forEach(Q=>{const d=document.createElement('div');
+      d.innerHTML=`<b>${esc(Q.q)}</b>${Q.a==='A'?'Mitigation':'Preparedness'}. ${esc(Q.e)}`; rw.appendChild(d);});
+  }
+  show('end');
+}
+function esc(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+$('#startBtn').addEventListener('click',start);
+$('#aBtn').addEventListener('click',()=>answer('A'));
+$('#bBtn').addEventListener('click',()=>answer('B'));
+$('#nextBtn').addEventListener('click',next);
+$('#againBtn').addEventListener('click',()=>show('start'));
+$('#toCheck').addEventListener('click',()=>show('check'));
+$('#backStart').addEventListener('click',()=>show('start'));
+$('#checkBtn').addEventListener('click',()=>{
+  const ok = makeCode($('#cName').value,$('#cId').value,$('#cPts').value) === $('#cCode').value.trim().toUpperCase();
+  const o=$('#checkOut'); o.textContent = ok ? 'Valid: the score matches the code.' : 'Does not match. Check the spelling, or the score may have been edited.';
+  o.style.color = ok ? 'var(--good)' : 'var(--bad)';
+});
+document.addEventListener('keydown',e=>{
+  if(!$('#play').classList.contains('on')) return;
+  const k=e.key.toLowerCase();
+  if(!answered && (k==='a'||k==='1')) answer('A');
+  else if(!answered && (k==='b'||k==='2')) answer('B');
+});
+</script>
+</body>
+</html>
